@@ -37,17 +37,12 @@ void SingleApplicationInvoker::destoryInstance(){
 
 SingleApplicationInvoker::SingleApplicationInvoker()
 : m_invokeScheduler(NULL)
-, m_invokeDelayer(NULL)
 , m_invokeTargetReply(NULL)
 {
 	//initialize timers
 	m_invokeScheduler = new QTimer(this);
-	m_invokeScheduler->setInterval(/*15**/60*1000); // 15mins
+	m_invokeScheduler->setInterval(15*60*1000); // 15mins
 	connect(m_invokeScheduler, SIGNAL(timeout()), this, SLOT(onScheduleTimeout()));
-
-	m_invokeDelayer = new QTimer(this);
-	m_invokeDelayer->setInterval(60*1000); // 1min
-	connect(m_invokeDelayer, SIGNAL(timeout()), this, SLOT(onDelayerTimeout()));
 
 }
 
@@ -55,7 +50,6 @@ SingleApplicationInvoker::SingleApplicationInvoker()
 
 SingleApplicationInvoker::~SingleApplicationInvoker(){
 	delete m_invokeScheduler;
-	delete m_invokeDelayer;
 }
 
 
@@ -68,6 +62,7 @@ void SingleApplicationInvoker::start(){
 }
 
 void SingleApplicationInvoker::invokeApp(){
+	fprintf(stderr, "%s\n", "invokeApp(): ");
 	if(m_targetUrl.isEmpty()){
 		return;
 	}
@@ -75,7 +70,8 @@ void SingleApplicationInvoker::invokeApp(){
 	bb::system::InvokeRequest request;
 	request.setTarget(m_targetUrl);
 	request.setAction("bb.action.OPEN");
-	fprintf(stdout, "%s\n", "Invoking Twitter app OPEN" );
+	fprintf(stderr, "%s\n", "Invoking Twitter app OPEN " );
+	fprintf(stderr, "%s\n",m_targetUrl.toStdString().c_str());
 	m_invokeTargetReply = invokeManager.invoke(request);
 	connect(m_invokeTargetReply, SIGNAL(finished()), this,  SLOT(onInvokeResult()));
 
@@ -91,25 +87,25 @@ void SingleApplicationInvoker::onInvokeResult()
         // Invocation could not find the target
         // did we use the right target ID?
     case bb::system::InvokeReplyError::NoTarget: {
-    	fprintf(stderr, "%s\n", "invokeFinished(): Error: no target");
+    	fprintf(stderr, "%s\n", "onInvokeResult(): Error: no target");
             break;
         }
         // There was a problem with the invoke request
         // did we set all the values correctly?
     case bb::system::InvokeReplyError::BadRequest: {
-    	fprintf(stderr, "%s\n", "invokeFinished(): Error: bad request" );
+    	fprintf(stderr, "%s\n", "onInvokeResult(): Error: bad request" );
             break;
         }
         // Something went completely
         // wrong inside the invocation request
         // Find an alternate route :(
     case bb::system::InvokeReplyError::Internal: {
-    	fprintf(stderr, "%s\n", "invokeFinished(): Error: internal" );
+    	fprintf(stderr, "%s\n", "onInvokeResult(): Error: internal" );
             break;
         }
         //Message received if the invoke request is successful
     default:
-    	fprintf(stdout, "%s\n", "invokeFinished(): Invoke Succeeded" );
+    	fprintf(stderr, "%s\n", "onInvokeResult(): Invoke Succeeded" );
         break;
     }
 
@@ -122,11 +118,7 @@ void SingleApplicationInvoker::stop(){
 
 	if(m_invokeScheduler)
 		m_invokeScheduler->stop();
-	if(m_invokeDelayer) {
-		m_invokeDelayer->stop();
-	}
-
-};
+}
 
 
 void SingleApplicationInvoker::onScheduleTimeout(){
@@ -135,14 +127,15 @@ void SingleApplicationInvoker::onScheduleTimeout(){
 	bb::system::InvokeRequest request;
 	request.setTarget(m_targetUrl);
 	request.setAction("bb.action.CLOSETWITTER");
-	fprintf(stdout, "%s\n", "Invoking Twitter app CLOSE" );
+	fprintf(stderr, "%s\n", "Invoking Twitter app CLOSE" );
 	m_invokeTargetReply = invokeManager.invoke(request);
+	connect(m_invokeTargetReply, SIGNAL(finished()), this,  SLOT(onInvokeResult()));
 
 	bb::system::SystemToast* toast = new bb::system::SystemToast(this);
 	toast->setBody("CLOSE request sent");
 	toast->exec();
-	//start delay timer to reopen app
-	m_invokeDelayer->start();
+	// reopen app after 1 min delay
+	QTimer::singleShot(60000, this, SLOT(invokeApp()));
 
 }
 

@@ -68,6 +68,11 @@ public Q_SLOTS:
 	 */
 	void onInvokeResult();
 
+	/**
+	 * invoke request for app
+	 */
+	void invokeApp();
+
 private:
 
 	/**
@@ -85,16 +90,12 @@ private:
 	 */
 	~SingleApplicationInvoker();
 
-	/**
-	 * invoke request for app
-	 */
-	void invokeApp();
+
 
 private:
 	static SingleApplicationInvoker* m_theInstance;
 
 	QTimer* m_invokeScheduler;// the invoke scheduler
-	QTimer* m_invokeDelayer; //delayer between 2 runs
 
 	bb::system::InvokeTargetReply *m_invokeTargetReply;
 	QString m_targetUrl;
